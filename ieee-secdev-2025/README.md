@@ -1,4 +1,4 @@
-*[Link back to master README](../README)*
+*[Link back to master README](../README.md)*
 
 # Security Anomaly Detection Enterprise GitHub
 
