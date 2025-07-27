@@ -1,0 +1,8 @@
+.venv
+data
+**/.DS_Store
+detection/feature_generation-pm.ipynb
+**/*.pyc
+**/pm_*
+.env
+investigation/**

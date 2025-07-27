@@ -1,0 +1,8 @@
+pandas
+scikit-learn
+matplotlib
+termcolor
+pydantic
+azure-identity
+azure-monitor-query
+python-dotenv

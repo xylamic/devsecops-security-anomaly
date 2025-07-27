@@ -1,0 +1,43 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        /*
+        {
+            "name": "Python Debugger: Feature Generation set",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "feature_generation_set.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/detection"
+        },
+        {
+            "name": "Python [D]: Data Link Generation",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "anomaly_detection.py",
+            "console": "integratedTerminal",
+            "args": ["data-links", "2024-03-01", "2024-06-01"],
+            "cwd": "${workspaceFolder}"
+        }*/
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python: Anomaly v3",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "anomaly_v3.py",
+            "args": ["ingest"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ueba-security-anomalies",
+        }
+    ]
+}

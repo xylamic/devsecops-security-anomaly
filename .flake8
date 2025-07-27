@@ -1,0 +1,4 @@
+[flake8]
+max-line-length = 120
+ignore = SC100, SC200, ASpell100, ASpell200
+disable-spell-checking = true
