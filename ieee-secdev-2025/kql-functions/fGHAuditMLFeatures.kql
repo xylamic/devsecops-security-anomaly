@@ -1,0 +1,81 @@
+//let starttime = ago(188d);
+//let endtime = ago(1d);
+
+let start_day = startofday(starttime);
+let end_day = startofday(endtime);
+
+let AuditRepoUse = fGHAuditRepoUse(ago(800d), ago(1d));
+let AuditActorRepoUse = fGHAuditActorRepoUse(ago(800d), ago(1d));
+let AuditActorStats = fGHAuditActorStats(start_day, end_day);
+
+GH_Audit_Logs_CL
+| where actor != ""
+| extend dt = unixtime_milliseconds_todatetime(timestamp)
+| extend time_of_day = datetime_part("hour", dt) + datetime_part("minute", dt) / 60.0
+| where dt >= start_day and dt <= end_day
+| extend day = startofday(dt)
+| extend is_weekend = toint(toint(dayofweek(dt) / 1d) in (0, 6))
+| lookup kind=leftouter AuditActorStats on actor
+// this collects time-of-day outliers on a per-event instance, so we can count the number of outliers
+| extend time_is_outlier = abs(iff(actor_time_day_stddev == 0, 0.0, (time_of_day - actor_time_day_avg) / actor_time_day_stddev)) > 3
+| lookup kind=leftouter AuditActorRepoUse on actor, repo
+// determine if this repo is newly accessed by this actor, and determine the z-score on a aggregated basis rather than individual (which wouldn't make sense)
+| extend new_repo_actor = dt <= datetime_add('day', 14, repo_actor_first_use)
+| extend leaver_action = iff(not(isnull(actor_left_org)) and datetime_add('day', 14, dt) > actor_left_org, 1, 0)
+| lookup kind=leftouter AuditRepoUse on repo
+| summarize
+    //leaver_action =                           toint(sum(leaver_action) > 0),
+    // if the day is a weekend (as weekdays and weekends likely exhibit different behaviors)
+    is_weekend =                                max(is_weekend),
+    // all the items that come directly from the actions in the audit log
+    codespaces_policy_group_deleted =           countif(action == "codespaces.policy_group_deleted"),
+    codespaces_policy_group_updated =           countif(action == "codespaces.policy_group_updated"),
+    environment_remove_protection_rule =        countif(action == "environment.remove_protection_rule"),
+    environment_update_protection_rule =        countif(action == "environment.update_protection_rule"),
+    git_clone =                                 countif(action == "git.clone"),
+    git_push =                                  countif(action == "git.push"),
+    hook_create =                               countif(action == "hook.create"),
+    integration_installation_create =           countif(action == "integration_installation.create"),
+    ip_allow_list_disable =                     countif(action == "ip_allow_list.disable"),
+    ip_allow_list_disable_for_installed_apps =  countif(action == "ip_allow_list.disable_for_installed_apps"),
+    ip_allow_list_entry_create =                countif(action == "ip_allow_list_entry.create"),
+    oauth_application_create =                  countif(action == "oauth_application.create"),
+    org_add_outside_collaborator =              countif(action == "org.add_outside_collaborator"),
+    org_recovery_codes_downloaded =             countif(action == "org.recovery_codes_downloaded"),
+    org_recovery_code_used =                    countif(action == "org.recovery_code_used"),
+    org_recovery_codes_printed =                countif(action == "org.recovery_codes_printed"),
+    org_recovery_codes_viewed =                 countif(action == "org.recovery_codes_viewed"),
+    personal_access_token_request_created =     countif(action == "personal_access_token.request_created"),
+    personal_access_token_access_granted =      countif(action == "personal_access_token.access_granted"),
+    protected_branch_destroy =                  countif(action == "protected_branch.destroy"),
+    protected_branch_policy_override =          countif(action == "protected_branch.policy_override"),
+    public_key_create =                         countif(action == "public_key.create"),
+    pull_request_create =                       countif(action == "pull_request.create"),
+    pull_request_merge =                        countif(action == "pull_request.merge"),
+    repo_access =                               countif(action == "repo.access"),
+    repo_download_zip =                         countif(action == "repo.download_zip"),
+    repository_branch_protection_evaluation_disable = countif(action == "repository_branch_protection_ evaluation.disable"),
+    repository_ruleset_destroy =                countif(action == "repository_ruleset.destroy"),
+    repository_ruleset_update =                 countif(action == "repository_ruleset.update"),
+    repository_secret_scanning_protection_disable = countif(action == "repository_secret_scanning_protection.disable"),
+    secret_scanning_push_protection_bypass =    countif(action == "secret_scanning_push_protection.bypass"),
+    ssh_certificate_authority_create =          countif(action == "ssh_certificate_authority.create"),
+    ssh_certificate_requirement_disable =       countif(action == "ssh_certificate_requirement.disable"),
+    workflow_run_create =                       countif(action == "workflows.created_workflow_run"),
+    // these come from attributes of the items in the audit log
+    unique_ips_used =                           dcount(actor_ip),
+    unique_repos_accessed =                     dcount(repo),
+    // determine if this is a repo, new to the actor, being accessed
+    unique_repos_first_accessed =               dcountif(repo, new_repo_actor),
+    new_repo_git_clone =                        countif(new_repo_actor and action == "git.clone"),
+    new_repo_git_push =                         countif(new_repo_actor and action == "git.push"),
+    new_repo_download =                         countif(new_repo_actor and action == "repo.download_zip"),
+    new_repo_workflow_run =                     countif(new_repo_actor and action == "workflows.created_workflow_run"),
+    // determine if this is a common read repository, as it would indicate working in different 'clusters' or key repos
+    active_read_repos_accessed =                countif(active_read_repo > 0),
+    active_write_repos_written =                countif(active_write_repo > 0),
+    active_read_repos_written =                 countif(active_read_repo == 1 and action == "git.push"),
+    // identify deviations from past behaviors
+    outlier_time_count =                        countif(time_is_outlier) // the numbers of times the person accessed outside their typical window
+    // z-scores for unique repos accessed, commonly read repos accessed, and commonly read repos pushed will be done in code, so they aggregate properly beyond this one calc
+    by actor, day;

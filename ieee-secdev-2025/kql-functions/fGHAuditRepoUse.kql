@@ -1,0 +1,29 @@
+//let starttime = ago(800d);
+//let endtime = ago(1d);
+
+let caps = fGHAuditActorRepoUse(starttime, endtime)
+| summarize repo_avg_day_clones = avg(repo_actor_clones), repo_avg_day_pushes = avg(repo_actor_pushes),
+    repo_stddev_day_clones = stdev(repo_actor_clones), repo_stddev_day_pushes = stdev(repo_actor_pushes) by repo
+| summarize read_cap1 = avg(repo_avg_day_clones) + 1 * stdev(repo_avg_day_clones), read_cap2 = avg(repo_avg_day_clones) + 2 * stdev(repo_avg_day_clones), read_cap3 = avg(repo_avg_day_clones) + 3 * stdev(repo_avg_day_clones), write_cap1 = avg(repo_avg_day_pushes) + 1 * stdev(repo_avg_day_pushes), write_cap2 = avg(repo_avg_day_pushes) + 2 * stdev(repo_avg_day_pushes), write_cap3 = avg(repo_avg_day_pushes) + 3 * stdev(repo_avg_day_pushes);
+let rcap1 = toscalar (caps | project read_cap1);
+let wcap1 = toscalar (caps | project write_cap1);
+let rcap2 = toscalar (caps | project read_cap2);
+let wcap2 = toscalar (caps | project write_cap2);
+let rcap3 = toscalar (caps | project read_cap3);
+let wcap3 = toscalar (caps | project write_cap3);
+
+
+fGHAuditActorRepoUse(starttime, endtime)
+| summarize first_use = min(repo_actor_first_use), last_use = max(repo_actor_last_use), total_clones = sum(repo_actor_clones), 
+    total_pushes = sum(repo_actor_pushes), total_downloads = sum(repo_actor_downloads), 
+    total_workflows = sum(repo_actor_workflow_run) by repo
+| extend days_in_use = toint(format_timespan(last_use - first_use, 'd'))
+| extend avg_day_clones = iif(total_clones > 0 and days_in_use > 0, total_clones / todouble(days_in_use), 0.0)
+| extend avg_day_pushes = iif(total_pushes > 0 and days_in_use > 0, total_pushes / todouble(days_in_use), 0.0)
+| extend avg_day_downloads = iif(total_downloads > 0 and days_in_use > 0, total_downloads / todouble(days_in_use), 0.0)
+| extend avg_day_workflows = iif(total_workflows > 0 and days_in_use > 0, total_workflows / todouble(days_in_use), 0.0)
+//| where avg_day_clones >= 100
+//| where avg_day_pushes >= 20
+| extend active_read_repo = iff(avg_day_clones >= rcap2, 1, 0) // value captured from top query
+| extend active_write_repo = iff(avg_day_pushes >= wcap2, 1, 0) // value captured from top query\
+| project repo, active_read_repo, active_write_repo, first_use, last_use, avg_day_clones, avg_day_pushes, avg_day_downloads, avg_day_workflows

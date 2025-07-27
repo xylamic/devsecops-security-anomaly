@@ -1,0 +1,65 @@
+//let starttime = ago(188d);
+//let endtime = ago(1d);
+
+let start_day = startofday(starttime);
+let end_day = startofday(endtime);
+
+let AuditRepoUse = fGHAuditRepoUse(ago(800d), ago(1d));
+let AuditActorRepoUse = fGHAuditActorRepoUse(ago(800d), ago(1d));
+
+let base_data = GH_Audit_Logs_CL
+    | extend dt = unixtime_milliseconds_todatetime(timestamp)
+    | where dt >= start_day and dt <= end_day
+    | extend time_of_day = datetime_part("hour", dt) + datetime_part("minute", dt) / 60.0
+    | extend date_def = bin(dt, 1d)
+    | where isnotempty(actor);
+let aas1 = base_data
+    | summarize time_day_avg = avg(time_of_day), time_day_stddev = stdev(time_of_day)by actor;
+let aas2 = base_data
+    | where action == "org.remove_member" or action == "org.add_member"
+    // get only the columns we need and convert the timestamp values
+    | project actor = user, action, dateaction = unixtime_milliseconds_todatetime(timestamp)
+    // take the last entry for a given user (so we can ignore multiple adds/removes for a given user
+    | summarize arg_max(dateaction, *) by actor
+    // only take the ones where the last entry was a remove
+    | where action == "org.remove_member"
+    | project actor, left_org = dateaction;
+let aas3 = base_data
+    | where isnotempty(repo)
+    | lookup kind=leftouter AuditRepoUse on repo
+    | lookup kind=leftouter AuditActorRepoUse on actor, repo
+    | extend repo_active_write_with_push = iff(active_write_repo == 1 and action == "git.push", 1, 0)
+    | extend DayBin = bin(dt, 1d)
+    | summarize
+        total_records = count(),
+        repo_actor_first_use = min(repo_actor_first_use),
+        total_repo_active_read = countif(active_read_repo == 1),
+        total_repo_active_write = countif(repo_active_write_with_push == 1)
+        by actor, repo, DayBin
+    | summarize
+        actor_activerepo_read_day_avg = iff(isnan(avgif(total_repo_active_read, repo_actor_first_use <= DayBin)), 0.0, avgif(total_repo_active_read, repo_actor_first_use <= DayBin)),
+        actor_activerepo_read_day_stddev = stdevif(total_repo_active_read, repo_actor_first_use <= DayBin),
+        actor_activerepo_push_day_avg = iff(isnan(avgif(total_repo_active_write, repo_actor_first_use <= DayBin)), 0.0, avgif(total_repo_active_write, repo_actor_first_use <= DayBin)),
+        actor_activerepo_push_day_stddev = stdevif(total_repo_active_write, repo_actor_first_use <= DayBin)
+        by actor;
+base_data
+| summarize daily_repos = dcount(repo) by actor, date_def
+| summarize avg_daily_repos = avg(daily_repos), stddev_daily_repos = stdev(daily_repos) by actor
+| lookup kind=leftouter aas1 on actor
+| lookup kind=leftouter aas2 on actor
+| lookup kind=leftouter aas3 on actor
+| extend actor_activerepo_read_day_avg = coalesce(actor_activerepo_read_day_avg, 0.0)
+| extend actor_activerepo_read_day_stddev = coalesce(actor_activerepo_read_day_stddev, 0.0)
+| extend actor_activerepo_push_day_avg = coalesce(actor_activerepo_push_day_avg, 0.0)
+| extend actor_activerepo_push_day_stddev = coalesce(actor_activerepo_push_day_stddev, 0.0)
+| project
+    actor,
+    actor_left_org = left_org,
+    actor_time_day_avg = time_day_avg,
+    actor_time_day_stddev = time_day_stddev,
+    actor_repo_day_avg = avg_daily_repos,
+    actor_repo_day_stddev = stddev_daily_repos, 
+    actor_activerepo_read_day_avg = actor_activerepo_read_day_avg,
+    actor_activerepo_read_day_stddev = actor_activerepo_read_day_stddev,
+    actor_activerepo_push_day_avg = actor_activerepo_push_day_avg,
+    actor_activerepo_push_day_stddev = actor_activerepo_push_day_stddev;

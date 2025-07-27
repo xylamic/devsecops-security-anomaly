@@ -1,0 +1,17 @@
+//let starttime = ago(800d);
+//let endtime = ago(1d);
+
+GH_Audit_Logs_CL
+    | extend dt = unixtime_milliseconds_todatetime(timestamp)
+    | where dt between (starttime .. endtime)
+    | where isnotempty(actor) and isnotempty(repo)
+    | summarize
+        repo_actor_first_use = min(dt),
+        repo_actor_last_use = max(dt),
+        repo_actor_pushes = countif(action == "git.push"),
+        repo_actor_clones = countif(action == "git.clone"),
+        repo_actor_downloads = countif(action == "repo.download_zip"),
+        repo_actor_pr_creates = countif(action == "pull_request.create"),
+        repo_actor_merges = countif(action == "pull_request.merge"),
+        repo_actor_workflow_run = countif(action == "workflows.created_workflow_run")
+        by actor, repo
