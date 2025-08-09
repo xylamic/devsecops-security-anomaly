@@ -34,7 +34,7 @@
             "name": "Python: Anomaly v3",
             "type": "debugpy",
             "request": "launch",
-            "program": "anomaly_v3.py",
+            "program": "/ingestion/anomaly_execution.py",
             "args": ["ingest"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/ueba-security-anomalies",

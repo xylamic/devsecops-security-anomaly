@@ -3,7 +3,7 @@ This module is for executing the overall Anomaly v3 algorithm, meant to be able 
 to a production environment.
 """
 
-import anomaly_v3_ingestion
+from ingestion import v3_ingestion
 from library import analysis_utils
 import pandas as pd
 from datetime import datetime
@@ -19,13 +19,13 @@ def run_ingestion(csv_export: str = "") -> pd.DataFrame:
     lookback_days = 188
 
     # Pull the data from Log Analytics
-    df = anomaly_v3_ingestion.pull_features_from_log_analytics(
+    df = v3_ingestion.pull_features_from_log_analytics(
         lookback_days,
         workspace_id,
         csv_export)
 
     # Clean the data
-    df = anomaly_v3_ingestion.validate_and_clean_features(
+    df = v3_ingestion.validate_and_clean_features(
         df,
         csv_export)
     
