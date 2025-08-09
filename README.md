@@ -1,18 +1,91 @@
-# devsecops-security-anomaly
-The technology to identify security anomalies in enterprise DevSecOps platforms. This is provided under the BSD-3 license and supporting commercial & academic research.
+# Security Anomaly Detection Enterprise GitHub
 
-## Structure
+The technology to identify security anomalies in enterprise DevSecOps platforms, such as misuse/abuse, risky behaviors, misconfigurations, and malicious actions. This is provided under the BSD-3 license and supporting commercial & academic research.
 
-This repository will provide iterations of research and snapshots of artifacts at the time of publication.
+*Published and presented at IEEE SecDev 2025: User Entity Behavior Analytics (UEBA) Enhanced Security Anomaly Detection in Enterprise DevSecOps Platforms (link to be added after publication)*
 
-- library: foundational modules for use across the repo
-- ieee-secdev-2025: implementation supporting daily analysis of anomalies in Enterprise GitHub that combines global and local features, including user and entity behavior analytics.
+This source and notebooks can be used to detect anomalies when using in conjunction with Azure LogAnalytics, where the logs are housed. This leverages KQL functions in LogAnalytics to generate the base features with high speed, which then only the required subset is ingested for further processing.
 
-## IEEE SecDev 2025: User Entity Behavior Analytics (UEBA) Enhanced Security Anomaly Detection in Enterprise DevSecOps Platforms
+```mermaid
+flowchart TD
+    C[Ingestion: anomaly_v3.py] --> A[Azure LogAnalytics]
+    C -.-> B[/File: Base Feature Set/]
+    C --> D[Feature Generation: v3_feature_generation.ipynb]
+    D -.-> F[/File: Complete Feature Set/]
+    D --> E[Detection and Analysis: v3_training_detection.ipynb]
+    E -.-> G[/File: Anomalies/]
+    GH[GitHub] --> A
 
-The source under *ueba-security-anomalies* is the artifacts supplementing these conference proceedings to exemplify detection of security anomalies within a specific implementation of Enterprise GitHub.
+    B -.-> D
+    F -.-> E
 
-For details on building & running, refer to the local [ieee-secdev-2025/README](ieee-secdev-2025/README.md).
+    subgraph External
+    A
+    GH
+    end
 
-**Abstract**
-*Secure software delivery platforms are essential for the management, release, and deployment of software. They generate billions of audit events, yet most anomaly detectors view all users through a single organizational lens. We introduce a dual‑granularity framework that fuses global outlier mining with user and entity behavior analytics (UEBA) to surface both blatant abuses and subtle deviations inside Enterprise GitHub. Leveraging 403 million audit log records spanning 147 days and 15K user, we engineer security‑centered features in three layers: raw action counts, temporal/IP enrichments, and per‑user analysis that capture history‑aware drift. An Isolation Forest tuned via contamination back-analysis isolates candidate threats in minutes without labeled data. Daily scoring in a Fortune 100 system flagged 26 anomalies: filtering 99.99\% of activity reveals exfiltration‑style repository downloads, privilege bypasses, and policy overrides hours after they occurred. In contrast, a global‑only baseline produced 64 alerts dominated by noisy service accounts. The proposed blend of UEBA and global metrics therefore cuts analyst workload while exposing insider‑level anomalies previously hidden beneath organizational norms. Because the method relies solely on native platform logs and open source tools, it can be transplanted to any large‑scale DevOps environment to harden the last mile of the software supply chain.*
+    subgraph local \"source\"
+    C
+    D
+    E
+    end
+```
+
+## Setup
+
+### Azure LogAnalytics
+
+Configuration of the KQL functions in Azure is a prerequisite to any of the local code. These are configured as Functions in LogAnalytics, where *starttime* and *endtime* are variables configurable to identify the date range to process.
+
+It is **likely** that you need to change table names to match your deployment, but column names should be the same using a standard configuration.
+
+1. [fGHAuditActorRepoUse](kql-functions/fGHAuditActorRepoUse.kql)
+2. [fGHAuditRepoUse](kql-functions/fGHAuditRepoUse.kql)
+3. [fGHAuditActorStats](kql-functions/fGHAuditActorStats.kql)
+4. [fGHAuditMLFeatures](kql-functions/fGHAuditMLFeatures.kql)
+
+All queries can be tested in conjunction with one another by testing the call to fGHAuditMLFeatures, which subsequently calls all other functions. This should results in a table, group by users, with all machine learning features.
+
+### Local
+
+The machine where ingestion will be performed, training, and analysis required a few setup steps.
+
+**Python environment**
+
+You will use Python and Python notebooks to run the solution. This requires running
+
+```pip3 install -r requirements```
+
+to ensure all dependencies are installed.
+
+**Login to Azure**
+
+Use the Azure CLI to set the login for the environment. The easiest way to do this is using
+
+```az login```
+
+Check the [documentation](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli-interactively?view=azure-cli-latest) for more details.
+
+**Create Environment File**
+
+A local .env file contains the Azure Workspace ID to connect to for the LogAnalytics instance. It should contain this text, replacing with your workspace ID (usually formatted as aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa).
+
+```
+AZ_WORKSPACE_ID=<your-workspace-id>
+```
+
+## Running
+
+1. Execute anomaly_execution.py with a parameter of "ingest"
+
+```python3 anomaly_execution.py ingest```
+
+This will pull the last 188 days of data using the KQL query gGHAuditMLFeatures in Azure to a local file (e.g., data/v3-ml-features-20250727.csv).
+
+2. Run notebook feature_generation.ipynb
+
+Open this notebook and modify the file names in the first cell as needed. Execute the entire notebook. This will generate a new file that contains the complete training & analysis set (e.g., data/v3-ml-complete-features-20250727.csv).
+
+3. Run notebook detection_analysis.ipynb
+
+Open this notebook and modify the file names in the first cell as needed. Execute the entire notebook. This will training, analyze, and generate the anomalies for your dataset- visible as results in the notebook.
