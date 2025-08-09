@@ -2,7 +2,7 @@
 
 The technology to identify security anomalies in enterprise DevSecOps platforms, such as misuse/abuse, risky behaviors, misconfigurations, and malicious actions. This is provided under the BSD-3 license and supporting commercial & academic research.
 
-*Published and presented at IEEE SecDev 2025: User Entity Behavior Analytics (UEBA) Enhanced Security Anomaly Detection in Enterprise DevSecOps Platforms (link to be added after publication)`*
+*Published and presented at IEEE SecDev 2025: User Entity Behavior Analytics (UEBA) Enhanced Security Anomaly Detection in Enterprise DevSecOps Platforms (link to be added after publication)*
 
 This source and notebooks can be used to detect anomalies when using in conjunction with Azure LogAnalytics, where the logs are housed. This leverages KQL functions in LogAnalytics to generate the base features with high speed, which then only the required subset is ingested for further processing.
 
