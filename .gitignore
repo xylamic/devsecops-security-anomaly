@@ -5,4 +5,16 @@ detection/feature_generation-pm.ipynb
 **/*.pyc
 **/pm_*
 .env
+.env.local
+*.log
 investigation/**
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/

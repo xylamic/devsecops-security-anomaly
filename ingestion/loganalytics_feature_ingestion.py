@@ -15,7 +15,8 @@ import math
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from library import log_analytics_utils
 from library import analysis_utils
-from library.analysis_utils import AnomalyV3Attrs
+from library.anomaly_v3_attrs import AnomalyV3Attrs
+from library.environment_utils import get_azure_workspace_id
 
 
 def pull_features_from_log_analytics(lookback_days:int, workspace_id:str, csv_export: str = "") -> pd.DataFrame:
@@ -96,5 +97,37 @@ def validate_and_clean_features(df: pd.DataFrame, csv_export: str = "") -> pd.Da
     return df_features
 
 
+def run_ingestion(csv_export: str = "") -> pd.DataFrame:
+    # Load environment variables
+    workspace_id: str = get_azure_workspace_id()
+    lookback_days = 181
+
+    # Pull the data from Log Analytics
+    df = pull_features_from_log_analytics(
+        lookback_days,
+        workspace_id,
+        csv_export)
+
+    # Clean the data
+    df = validate_and_clean_features(
+        df,
+        csv_export)
+    
+    return df
+
+
 if __name__ == "__main__":
-    pass
+
+    # get a string for today's date in the format YYYYMMDD
+    today_str: str = datetime.today().strftime('%Y%m%d')
+    print(f"Today's date str: {today_str}")
+
+    # Construct the data directory path and create it if it doesn't exist
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
+    os.makedirs(data_dir, exist_ok=True)
+    
+    features_file: str = os.path.join(data_dir, f"v3-ml-features-{today_str}.csv")
+
+    print("Ingesting data...")
+    run_ingestion(features_file)
+    print("Ingestion complete.")

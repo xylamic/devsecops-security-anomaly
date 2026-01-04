@@ -1,8 +1,7 @@
 pandas
 scikit-learn
-matplotlib
-termcolor
 pydantic
 azure-identity
 azure-monitor-query
+azure-monitor-ingestion
 python-dotenv
